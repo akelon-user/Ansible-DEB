@@ -1,0 +1,65 @@
+---
+- hosts: 
+  become: yes
+  vars:
+    rmq_user: Admin
+    rmq_password: 
+    rmq_vhost: 
+  pre_tasks:
+    - name: "Timedatazone"
+      command: timedatectl set-timezone Europe/Moscow
+    - name: "Установка curl"
+      apt:
+        name: curl
+    - name: "Установка gnupg"
+      apt:
+        name: gnupg
+    - name: "Создание файла с репозиториями RMQ"
+      file:
+       path: /etc/apt/sources.list.d/rabbitmq.list
+       state: touch
+       owner: root
+       group: root
+       mode: 0777
+    - name: "Добавление репозиториев"
+      blockinfile:
+        path: /etc/apt/sources.list.d/rabbitmq.list
+        state: present
+        block: |
+          deb [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/ubuntu bionic main
+          deb-src [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/ubuntu bionic main
+          deb [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.9F4587F226208342.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/ubuntu bionic main
+          deb-src [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.9F4587F226208342.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/ubuntu bionic main          
+    - name: "Update добавленных репозиториев"
+      command: sudo apt update
+      ignore_errors: yes
+    - name: "Установка пакетов Erlang"
+      ansible.builtin.apt:
+        pkg:
+        - erlang-base
+        - erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets
+        - erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key
+        - erlang-runtime-tools erlang-snmp erlang-ssl
+        - erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl
+      ignore_errors: yes
+    - name: "Установка RMQ"
+      command: apt-get install rabbitmq-server -y --fix-missing
+    - name: "Установка автозагрузки RMQ"
+      service:
+        name: rabbitmq-server
+        enabled: yes
+    - name: "Установка RMQ plugins"
+      command: rabbitmq-plugins enable rabbitmq_management
+    - name: "Создание пользователя в RMQ"
+      command: rabbitmqctl add_user {{ rmq_user }} {{ rmq_password }}
+    - name: "Добавление пользователя в группу администраторов"
+      command: rabbitmqctl set_user_tags {{ rmq_user }} administrator
+    - name: "Создание vhost"
+      command: rabbitmqctl add_vhost {{ rmq_vhost }}
+    - name: "Установка permissions vhost"
+      command: rabbitmqctl set_permissions -p {{ rmq_vhost }} {{ rmq_user }} ".*" ".*" ".*"
+    - name: "Установка topic permissions vhost"
+      command: rabbitmqctl set_topic_permissions -p {{ rmq_vhost }} {{ rmq_user }} ".*" ".*" ".*"
+    - name: "Удаление пользователя guest"
+      command: rabbitmqctl delete_user guest
+      ignore_errors: yes

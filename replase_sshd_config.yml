@@ -1,0 +1,21 @@
+---
+- name: Copy sshd config
+  hosts: 
+  become: true
+  tasks:
+   - name: Copy sshd_config
+     ansible.builtin.copy:
+       src: /etc/ansible/sshd_config
+       dest: /etc/ssh/sshd_config
+       owner: root
+       mode: '0644'
+   - name: restart sshd
+     service:
+       name: sshd.service
+       state: restarted
+     ignore_errors: true
+   - name: restart ssh
+     service:
+       name: ssh.service
+       state: restarted
+     ignore_errors: true

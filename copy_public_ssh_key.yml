@@ -1,0 +1,15 @@
+---
+- name: Copy SSH
+  hosts: 
+  become: true
+  gather_facts: false
+  vars:
+# Define your username and password here that you want to create on target hosts.
+    username: root
+    userpass: 
+  tasks:
+    - name: Deploy_SSH_Public_Key
+      ansible.posix.authorized_key:
+        user: "{{ username }}"
+        state: present
+        key: "{{ lookup('file', '/{{ username }}/.ssh/id_rsa.pub') }}"
